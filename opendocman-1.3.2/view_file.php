@@ -145,8 +145,100 @@ elseif ($_GET['submit'] == 'Download')
     }
 
 }
+elseif ($_GET['submit'] == 'DownloadForUser')
+{
+	$allIds = search();
+	$zip = new ZipArchive();
+	$finalFileName = sys_get_temp_dir() . "/allfiles_" . $_REQUEST['id'] . ".zip";
+	if (file_exists($finalFileName)) {
+		unlink($finalFileName);
+	}
+
+	if ($zip->open($finalFileName, ZipArchive::CREATE)!==TRUE) {
+		exit("cannot open <$filename>\n");
+	}
+	foreach ($allIds as $did){	
+	    $file_obj = new FileData($did, $pdo);
+    
+    	// Added this check to keep unauthorized users from downloading - Thanks to Chad Bloomquist
+	    checkUserPermission($did, $file_obj->READ_RIGHT, $file_obj);    
+    	$realname = $file_obj->getName();    
+		if( isset($revision_id) )
+		{
+			$filename = $revision_dir . $did . ".dat";
+		}
+		elseif( $file_obj->isArchived() )
+		{
+			$filename = $GLOBALS['CONFIG']['archiveDir'] . $did . ".dat";
+		}
+		else
+		{
+			$filename = $GLOBALS['CONFIG']['dataDir'] . $did . ".dat";
+		}
+		$zip->addFile($filename,$realname);
+	}
+	$zip->close();
+	if (file_exists($finalFileName))
+    {
+        // send headers to browser to initiate file download
+        header('Cache-control: private');
+        header ('Content-Type: application/zip');
+        //header ('Content-Type: '.$_GET['mimetype']);
+        header ('Content-Disposition: attachment; filename="' . "allfiles.zip" . '"');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        readfile($finalFileName);
+        AccessLog::addLogEntry($_REQUEST['id'], 'D', $pdo);
+    }
+    else
+    {
+        echo msg('message_file_does_not_exist');
+    }
+}
 else
 {
     echo msg('message_nothing_to_do');
     echo 'submit is ' . $_GET['submit'];
 }
+
+function search() {
+        global $pdo;
+        $remain ='';
+        $query_pre = "
+          SELECT
+            d.id
+          FROM
+            {$GLOBALS['CONFIG']['db_prefix']}data as d,
+            {$GLOBALS['CONFIG']['db_prefix']}user as u,
+            {$GLOBALS['CONFIG']['db_prefix']}department dept,
+            {$GLOBALS['CONFIG']['db_prefix']}category as c ";
+
+        $query = "
+            WHERE
+                d.owner = u.id
+            AND
+                d.department = dept.id
+            AND
+                d.category = c.id AND (
+        ";
+		$query .= "d.owner = :uid ";        
+        $query .= ") ORDER BY d.id ASC";
+
+        $final_query = $query_pre . $query;
+
+        $stmt = $pdo->prepare($final_query);
+        $stmt->bindParam(':uid', $_REQUEST['id']);
+        
+        $stmt->execute();
+        $result = $stmt->fetchAll();
+
+        $index = 0;
+        $id_array = array();
+
+        foreach($result as $row) {
+            $id_array[$index++] = $row['id'];
+            $index++;
+        }        
+        //print_r($id_array);
+        return $id_array;
+    }
