@@ -124,6 +124,8 @@ function draw_header($pageTitle, $lastmessage='')
         $GLOBALS['smarty']->assign('userName', $current_user_obj->getName());
         $GLOBALS['smarty']->assign('can_add', $current_user_obj->can_add);
         $GLOBALS['smarty']->assign('can_checkin', $current_user_obj->can_checkin);
+        $GLOBALS['smarty']->assign('mootly_uid', $current_user_obj->id);
+	//var_dump($current_user_obj);die();
     }
     
     // Are they an Admin?
@@ -317,7 +319,8 @@ function list_files($fileid_array, $userperms_obj, $dataDir, $showCheckBox = fal
         } else {
             $modified_date = $created_date;
         }
-
+		$owner_id = $file_obj->getOwner();
+		$category_name = $file_obj->getCategoryName();
         $full_name_array = $file_obj->getOwnerFullName();
         $owner_name = $full_name_array[1] . ', ' . $full_name_array[0];
         $dept_name = $file_obj->getDeptName();
@@ -372,9 +375,11 @@ function list_files($fileid_array, $userperms_obj, $dataDir, $showCheckBox = fal
                 'details_link'=>$details_link,
                 'filename'=>$realname,
                 'description'=>$description,
+                'category_name' => $category_name,
                 'rights'=>$rights,
                 'created_date'=>$created_date,
                 'modified_date'=>$modified_date,
+                'owner_id' => $owner_id,
                 'owner_name'=>$owner_name,
                 'dept_name'=>$dept_name,
                 'filesize'=>$filesize,
@@ -408,6 +413,9 @@ function sort_browser()
 {
     global $pdo;
 
+    if( !mootly_attorneyOrUs()) { //if not attorney or mootly then simply don't show this
+        return;
+    }
     ?>
 <script type="text/javascript">
     var category_option = '';
@@ -930,4 +938,26 @@ function redirect_visitor($url='')
         }
     }
 
+}
+
+function mootly_attorneyOrUs() {
+	global $pdo;
+	$uid = (isset($_SESSION['uid']) ? $_SESSION['uid'] : '');    
+    // Is the uid set?
+    if ($uid != NULL)
+    {    	
+        $current_user_obj = new User($uid, $pdo);
+		//var_dump($current_user_obj);die();
+		if ($current_user_obj->department !== "2" && $current_user_obj->department !== "5")
+		{
+			return FALSE;
+		}
+		else {
+			return TRUE;
+		}
+    }
+    else {
+    	return FALSE;
+    }    
+    // Are they an Admin?
 }
