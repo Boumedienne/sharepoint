@@ -27,7 +27,7 @@
 }
 </style>
 {/literal}
-
+{if $isadmin eq 'yes'}
 <dl class="accordion">
     <dt><a href="">{$g_lang_filepermissionspage_edit_department_permissions}</a></dt>
     <dd>
@@ -64,7 +64,12 @@
             </tbody>
         </table>
     </dd>
-    <hr />
+{else}
+	<input type="hidden" name="department_permission[2]" value="2" />
+	<input type="hidden" name="department_permission[5]" value="4" />
+	<input type="hidden" name="department_permission[6]" value="0" />
+{/if}
+{if $isadmin eq 'yes'}
     <dt><a href="">{$g_lang_filepermissionspage_edit_user_permissions}</a></dt>
     <dd>
         <table id="user_permissions_table" class="display">
@@ -97,6 +102,14 @@
         </table>
     </dd>
 </dl>
+{else}
+	<input type="hidden" name="user_permission[{$mootly_uid}]" value="4"  />
+	{foreach from=$avail_users item=user}
+		{if $user.id neq $mootly_uid}
+                    <input type="hidden" name="user_permission[{$user.id}]" value="-1"/>
+		{/if}
+	{/foreach}
+{/if}
 {literal}
 <script>
     $(document).ready(function() {
